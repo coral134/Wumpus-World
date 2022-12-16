@@ -1,22 +1,14 @@
 #ifndef _HUMAN_AGENT_H
 #define _HUMAN_AGENT_H
 
-#include <map>
-#include <iostream>
-#include <set>
-#include <cassert>
-#include <list>
-#include <iomanip>
-#include <functional>
 #include "game.h"
-#include "logic_engine.h"
 
 class HumanAgent : public Game {
 public:
-    HumanAgent() : Game(true, false) {}
+    HumanAgent() : Game(true) {}
 
 protected:
-    DIRECTION choose_shoot() {
+    static DIRECTION choose_shoot() {
         while(true) {
             std::cout << "Where do you shoot: w (up), s (down), a (left), d (right)" << std::endl;
             std::string str;
@@ -28,7 +20,7 @@ protected:
         }
     }
 
-    Move choose_move() override {
+    Move choose_move(const Sense &sense) override {
         while(true) {
             std::cout << "Choose your move: w (up), s (down), a (left), d (right), x (shoot)" << std::endl;
             std::string str;

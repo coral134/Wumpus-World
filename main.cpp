@@ -1,5 +1,7 @@
+#include <iostream>
 #include "robot_agent.h"
 #include "human_agent.h"
+#include "my_agent.h"
 
 int main(int argc, char *argv[]) {
     if(argc < 3) {
@@ -7,6 +9,7 @@ int main(int argc, char *argv[]) {
         std::cerr << "Example inputs:" << std::endl;
         std::cerr << "./wumpus.out game1.txt robot" << std::endl;
         std::cerr << "./wumpus.out game1.txt human" << std::endl;
+        std::cerr << "./wumpus.out game1.txt myagent" << std::endl;
         exit(1);
     }
 
@@ -15,6 +18,9 @@ int main(int argc, char *argv[]) {
         agent.run_game(argv[1]);
     } else if(std::string(argv[2]) == "human"){
         HumanAgent agent;
+        agent.run_game(argv[1]);
+    } else if(std::string(argv[2]) == "myagent"){
+        MyAgent agent;
         agent.run_game(argv[1]);
     }
 }

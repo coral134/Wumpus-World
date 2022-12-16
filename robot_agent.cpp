@@ -1,84 +1,68 @@
+#include <iostream>
 #include "robot_agent.h"
 
-void RobotAgent::start() {
+void RobotAgent::start(int sizeX, int sizeY) {
+    sX = sizeX;
+    sY = sizeY;
     wX = wY = 0;
-    logic = LogicEngine<std::pair<int, int>, CELL>({CELL::EMPTY, CELL::PIT, CELL::WUMPUS, CELL::GOLD});
     path = std::list<Move>();
+    logic = LogicEngine<std::pair<int, int>, CELL>({CELL::EMPTY, CELL::PIT, CELL::WUMPUS, CELL::GOLD});
+    visited = std::set<std::pair<int, int>>();
+}
+
+Move RobotAgent::choose_move(const Sense &sense_) {
+    sense = sense_;
+    if(path.empty()) {
+        update_info();
+        choose_target();
+    }
+    return follow_path();
 }
 
 void RobotAgent::update_info() {
-    if(just_found_gold()) {
-        logic.set_known({wX, wY}, EMPTY);
-        path = std::list<Move>();
-    }
-
-    if(!path.empty()) return;
+    if(sense.just_found_gold) logic.set_known({wX, wY}, EMPTY);
 
     visited.insert({wX, wY});
     logic.constrain_all_of({{wX, wY}}, CELL::EMPTY);
 
-    std::vector<std::pair<int, int>> locs;
-    if(is_valid_cell(wX, wY + 1)) locs.emplace_back(wX, wY + 1);
-    if(is_valid_cell(wX, wY - 1)) locs.emplace_back(wX, wY - 1);
-    if(is_valid_cell(wX + 1, wY)) locs.emplace_back(wX + 1, wY);
-    if(is_valid_cell(wX - 1, wY)) locs.emplace_back(wX - 1, wY);
+    std::set<std::pair<int, int>> locs;
+    if(is_valid_cell(wX, wY + 1)) locs.insert({wX, wY + 1});
+    if(is_valid_cell(wX, wY - 1)) locs.insert({wX, wY - 1});
+    if(is_valid_cell(wX + 1, wY)) locs.insert({wX + 1, wY});
+    if(is_valid_cell(wX - 1, wY)) locs.insert({wX - 1, wY});
 
-    if(stench()) logic.constrain_one_of(locs, CELL::WUMPUS);
-    else logic.constrain_none_of(locs, CELL::WUMPUS);
-    if(glitter()) logic.constrain_one_of(locs, CELL::GOLD);
-    else logic.constrain_none_of(locs, CELL::GOLD);
-    if(breeze()) logic.constrain_at_least_one_of(locs, CELL::PIT);
+    if(sense.stench) {
+        logic.constrain_one_of(locs, CELL::WUMPUS);
+        logic.constrain_one_of(CELL::WUMPUS);
+    } else logic.constrain_none_of(locs, CELL::WUMPUS);
+
+    if(sense.glitter) {
+        logic.constrain_one_of(locs, CELL::GOLD);
+        logic.constrain_one_of(CELL::GOLD);
+    } else logic.constrain_none_of(locs, CELL::GOLD);
+
+    if(sense.breeze) logic.constrain_at_least_one_of(locs, CELL::PIT);
     else logic.constrain_none_of(locs, CELL::PIT);
-    logic.constrain_one_of(CELL::GOLD);
-    logic.constrain_one_of(CELL::WUMPUS);
-    logic.deduce();
-
-    choose_target();
 }
 
-Game::Move RobotAgent::choose_move() {
+Move RobotAgent::follow_path() {
     Move move = path.front();
     if(move.shoot) {
         int x = wX;
         int y = wY;
         add_direction(x, y, move.dir);
         logic.set_known({x, y}, EMPTY);
-    } else {
-        add_direction(wX, wY, move.dir);
-    }
+    } else add_direction(wX, wY, move.dir);
 
     path.pop_front();
     return move;
-}
-
-std::string RobotAgent::print_cell_top(int x, int y) {
-    auto res = logic.most_likely({x, y});
-    if(wX == x && wY == y) return "Robot";
-    if(res.first.size() == 1)
-        return cell_to_str(res.first.back());
-    std::string str;
-    for(auto i: res.first) {
-        str += cell_to_char(i);
-        if(i != res.first.size() - 1) str += "/";
-    }
-    return str;
-}
-
-std::string RobotAgent::print_cell_bottom(int x, int y) {
-    auto res = logic.most_likely({x, y});
-    if(wX == x && wY == y) return "";
-    int l = (int) (res.second * 100);
-    if(l == 100) return " ";
-    std::string str = std::to_string(l);
-    str += "%";
-    return str;
 }
 
 void RobotAgent::choose_target() {
     path = std::list<Move>();
     std::pair<int, int> loc;
 
-    if(just_found_gold()) { // navigate back
+    if(sense.just_found_gold) { // navigate back
         find_path_to_location(0, 0);
         return;
     }
@@ -107,18 +91,6 @@ void RobotAgent::choose_target() {
     // No possible safe options
     std::cerr << "This game is rigged!" << std::endl;
     exit(1);
-}
-
-bool RobotAgent::is_valid_cell(int x, int y) {
-    return !(x < 0 || y < 0 || x >= sizeX() || y >= sizeY());
-}
-
-bool RobotAgent::safe(int x, int y) {
-    return logic.is_true({x, y}, CELL::EMPTY);
-}
-
-bool RobotAgent::new_safe(int x, int y) {
-    return (visited.find({x, y}) == visited.end()) && safe(x, y);
 }
 
 bool RobotAgent::find_path_to_location(int x, int y) {
@@ -166,4 +138,24 @@ bool RobotAgent::find_path(int startX, int startY, const std::function<bool(int,
     }
 
     return false;
+}
+
+void RobotAgent::add_direction(int &x, int &y, DIRECTION dir) {
+    if(dir == DIRECTION::UP) ++y;
+    else if(dir == DIRECTION::DOWN) --y;
+    else if(dir == DIRECTION::RIGHT) ++x;
+    else if(dir == DIRECTION::LEFT) --x;
+    else assert(false);
+}
+
+bool RobotAgent::is_valid_cell(int x, int y) const {
+    return !(x < 0 || y < 0 || x >= sX || y >= sY);
+}
+
+bool RobotAgent::safe(int x, int y) {
+    return logic.is_true({x, y}, CELL::EMPTY);
+}
+
+bool RobotAgent::new_safe(int x, int y) {
+    return (visited.find({x, y}) == visited.end()) && safe(x, y);
 }
