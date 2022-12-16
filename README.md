@@ -10,6 +10,7 @@ Two agents are provided, RobotAgent and HumanAgent. RobotAgent is our implementa
 The initial world is loaded in from a given text file, and can be a rectangle of any dimensions. 'E' represents an empty room, 'P' a pit, 'W' the Evil Wumpus, and 'G' the gold.
 
 To run this code from the terminal, run the .out file with the name of the text file to load the world from and the name of the agent to use. Then, hit ENTER to continue to the next move. For example, use one of these commands to run the game:
-./wumpus.out game1.txt robot
-./wumpus.out game1.txt human
-./wumpus.out game1.txt myagent
+
+./wumpus.out game1.txt robot  
+./wumpus.out game1.txt human  
+./wumpus.out game1.txt myagent  
